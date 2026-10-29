@@ -1,0 +1,17 @@
+{
+  "name": "AGK 3D – Sistema",
+  "short_name": "AGK 3D",
+  "description": "Painel, encomendas, orçamentos e estoque da AGK 3D",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c1d2f",
+  "theme_color": "#13233F",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
