@@ -1,6 +1,6 @@
 // Service worker mínimo: só existe para o celular reconhecer o sistema como aplicativo instalável.
 // Ele não guarda nenhum dado da empresa; tudo continua vindo da planilha pelo Google.
-const VERSAO = 'agk3d-casca-v1';
+const VERSAO = 'agk3d-casca-v2';
 const ARQUIVOS = ['./', './index.html', './manifest.webmanifest', './icone-192.png', './icone-512.png'];
 
 self.addEventListener('install', e => {

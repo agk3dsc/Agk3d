@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AGK 3D</title>
+<meta name="theme-color" content="#13233F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AGK 3D">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{ --navy:#13233F; --fundo:#0c1d2f; --laranja:#F26B1D; }
+  *{ box-sizing:border-box }
+  html,body{ margin:0; height:100%; background:var(--fundo); color:#fff; font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden }
+  #sistema{ position:fixed; inset:0; width:100%; height:100%; border:0; background:#F4F6FA;
+            padding-top:env(safe-area-inset-top); display:none }
+  .tela{ position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center }
+  .tela img{ width:132px; height:132px; border-radius:28px; box-shadow:0 10px 40px rgba(0,0,0,.4) }
+  .tela h1{ margin:0; font-size:22px }
+  .tela p{ margin:0; color:#AFC0DD; max-width:420px }
+  .spinner{ width:30px; height:30px; border:3px solid rgba(255,255,255,.2); border-top-color:var(--laranja); border-radius:50%; animation:gira .8s linear infinite }
+  @keyframes gira{ to{ transform:rotate(360deg) } }
+  input{ width:100%; max-width:420px; padding:12px 14px; border-radius:12px; border:1px solid #2A4572; background:#13233F; color:#fff; font:inherit }
+  button,a.botao{ background:var(--laranja); color:#fff; border:0; border-radius:12px; padding:12px 22px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none }
+  .link{ color:#AFC0DD; font-size:13px; text-decoration:underline; background:none; padding:0; font-weight:400 }
+  .erro{ color:#FF8A8A; font-size:13px; min-height:18px }
+  [hidden]{ display:none !important }
+  #folha{ position:fixed; left:0; right:0; bottom:0; z-index:50; background:#fff; color:#13233F; border-radius:20px 20px 0 0;
+          padding:20px 18px calc(20px + env(safe-area-inset-bottom)); box-shadow:0 -10px 40px rgba(0,0,0,.35); text-align:center }
+  #folha h2{ margin:0 0 4px; font-size:17px } #folha p{ margin:0 0 16px; color:#5A6B85; font-size:13px; word-break:break-all }
+  #folha .linha{ display:flex; gap:10px } #folha button{ flex:1; min-height:52px }
+  #folha .sec{ background:#fff; color:#13233F; border:1.5px solid #D5DCE6 }
+  #fundoFolha{ position:fixed; inset:0; background:rgba(10,18,32,.5); z-index:49 }
+</style>
+</head>
+<body>
+
+<!-- Abrindo -->
+<div class="tela" id="abrindo">
+  <img src="icone-192.png" alt="AGK 3D">
+  <div class="spinner"></div>
+  <p>Abrindo o sistema…</p>
+  <p id="demora" hidden>Está demorando? <a class="link" id="abrirNavegador" href="#" target="_blank" rel="noopener">Abrir no navegador</a></p>
+</div>
+
+<!-- Configuração (só na primeira vez) -->
+<div class="tela" id="config" hidden>
+  <img src="icone-192.png" alt="AGK 3D">
+  <h1>Configurar o app AGK 3D</h1>
+  <p>Cole aqui o link do sistema, aquele que termina em <b>/exec</b> (Apps Script → Implantar → Gerenciar implantações).</p>
+  <input id="campoLink" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+  <div class="erro" id="erroLink"></div>
+  <button id="salvarLink">Salvar e abrir</button>
+  <p style="font-size:12px">O link fica guardado só neste aparelho.</p>
+</div>
+
+<!-- Compartilhar PDF (o sistema manda o PDF para cá, porque dentro do Google a lista de compartilhar é bloqueada) -->
+<div id="fundoFolha" hidden></div>
+<div id="folha" hidden>
+  <h2>📄 PDF do orçamento pronto</h2>
+  <p id="folhaNome"></p>
+  <div class="linha">
+    <button class="sec" id="folhaFechar">Fechar</button>
+    <button id="folhaCompartilhar">📲 Compartilhar</button>
+  </div>
+</div>
+
+<iframe id="sistema" title="Sistema AGK 3D" allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+
+<script>
+(function(){
+  var CHAVE = 'agk3d_link_sistema';
+  var $ = function(id){ return document.getElementById(id); };
+  var params = new URLSearchParams(location.search);
+
+  function lerLink(){ try { return localStorage.getItem(CHAVE) || ''; } catch(e){ return ''; } }
+  function gravarLink(v){ try { localStorage.setItem(CHAVE, v); } catch(e){} }
+
+  // ?configurar no endereço apaga o link salvo e mostra a tela de configuração de novo
+  if (params.has('configurar')) { try { localStorage.removeItem(CHAVE); } catch(e){} history.replaceState(null, '', location.pathname); }
+
+  function linkValido(v){
+    return /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[A-Za-z0-9_-]+\/(exec|dev)$/.test(v);
+  }
+
+  function abrir(link){
+    $('config').hidden = true;
+    $('abrindo').hidden = false;
+    $('abrirNavegador').href = link;
+    var frame = $('sistema');
+    var timer = setTimeout(function(){ $('demora').hidden = false; }, 15000);
+    frame.onload = function(){
+      clearTimeout(timer);
+      frame.style.display = 'block';
+      setTimeout(function(){ $('abrindo').hidden = true; }, 250);
+    };
+    frame.src = link;
+  }
+
+  function mostrarConfig(){
+    $('abrindo').hidden = true;
+    $('config').hidden = false;
+    $('campoLink').value = lerLink();
+  }
+
+  $('salvarLink').onclick = function(){
+    var v = $('campoLink').value.trim().replace(/[?#].*$/, '').replace(/\/+$/, '');
+    if (!linkValido(v)) { $('erroLink').textContent = 'Esse não parece o link do sistema. Ele começa com https://script.google.com/macros/s/ e termina com /exec.'; return; }
+    gravarLink(v);
+    abrir(v);
+  };
+
+  // As páginas do sistema pedem para trocar de tela (painel ↔ orçamento) por aqui, para continuar dentro do app.
+  window.addEventListener('message', function(ev){
+    var d = ev.data || {};
+    if (!/\.googleusercontent\.com$/.test(new URL(ev.origin).hostname)) return;
+    if (d.agk === 'compartilhar' && typeof d.b64 === 'string') { mostrarFolha(d); return; }
+    if (d.agk !== 'ir' || typeof d.url !== 'string') return;
+    if (d.url.indexOf('https://script.google.com/') !== 0) return;
+    $('abrindo').hidden = false;
+    $('sistema').src = d.url;
+  });
+
+  // ---- compartilhar o PDF do orçamento ----
+  var arquivoPdf = null;
+  function fecharFolha(){ $('folha').hidden = true; $('fundoFolha').hidden = true; arquivoPdf = null; }
+  function mostrarFolha(d){
+    var nome = String(d.nome || 'Orcamento.pdf').replace(/[^\w.\-]+/g, '_');
+    var bin = atob(d.b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    arquivoPdf = new File([bytes], nome, { type: 'application/pdf' });
+    $('folhaNome').textContent = nome + (d.cliente ? ' · ' + d.cliente : '');
+    $('folha').hidden = false; $('fundoFolha').hidden = false;
+  }
+  function baixar(arq){
+    var a = document.createElement('a'); a.href = URL.createObjectURL(arq); a.download = arq.name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  $('folhaFechar').onclick = fecharFolha;
+  $('fundoFolha').onclick = fecharFolha;
+  $('folhaCompartilhar').onclick = function(){
+    var arq = arquivoPdf; if (!arq) return;
+    if (navigator.canShare && navigator.canShare({ files: [arq] })) {
+      navigator.share({ files: [arq], title: arq.name.replace(/\.pdf$/, '') })
+        .then(fecharFolha, function(e){ if (!e || e.name !== 'AbortError') { baixar(arq); fecharFolha(); } });
+    } else { baixar(arq); fecharFolha(); }
+  };
+
+  var link = lerLink();
+  if (linkValido(link)) abrir(link); else mostrarConfig();
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+})();
+</script>
+</body>
+</html>
